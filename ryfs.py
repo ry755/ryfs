@@ -51,6 +51,11 @@ def ryfs_add():
     if not quiet:
         print("adding file", "\"" + extra_file_name + "." + extra_file_ext + "\"", "of size", extra_file_size, "bytes to RYFSv1 filesystem with label", "\"" + ryfs_image_label + "\"")
 
+    # ensure file doesn't already exist
+    if ryfs_find_entry(extra_file_name, extra_file_ext) != None:
+        print("file already exists! failing")
+        return
+
     # find first empty file entry
     first_free_entry = ryfs_find_free_entry()
     if first_free_entry == None:
