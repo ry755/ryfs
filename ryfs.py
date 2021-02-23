@@ -7,7 +7,7 @@ import sys
 import struct
 import argparse
 
-version_info = (0, 1)
+version_info = (0, 2)
 version = '.'.join(str(c) for c in version_info)
 
 # create new RYFSv1 disk image
