@@ -85,20 +85,30 @@ def ryfs_add():
 
     # write file data
     for sector in range(0, extra_file_size_sectors):
+        # find a free sector to use as the current sector to write to
         next_free_sector = ryfs_find_free_sector()
         ryfs_image.seek(next_free_sector*512)
         ryfs_mark_used(next_free_sector)
+        # find another free sector to use as the next sector of this file
         next_free_sector = ryfs_find_free_sector()
         ryfs_image.write(bytearray([255,0]))
         if sector != extra_file_size_sectors-1:
+            # this is not the last sector of this file
+            # write the nomber of the next file sector
             ryfs_image.write(struct.pack('<H', next_free_sector))
-        else:
+            # since this is not the last sector, we don't care about the size of it (we know it's 512 bytes)
             ryfs_image.write(struct.pack('<H', 0))
+        else:
+            # this is the last sector of this file
+            # there is no next sector for this file
+            ryfs_image.write(struct.pack('<H', 0))
+            # write the size of the last sector
+            ryfs_image.write(struct.pack('<H', extra_file_size - extra_file.tell()))
         # zero sector first to ensure there is no remaining data from previous files
-        ryfs_image.write(bytearray(508))
-        ryfs_image.seek(ryfs_image.tell()-508)
+        ryfs_image.write(bytearray(506))
+        ryfs_image.seek(ryfs_image.tell()-506)
         # write file data
-        ryfs_image.write(extra_file.read(508))
+        ryfs_image.write(extra_file.read(506))
 
     extra_file.close()
 
@@ -151,7 +161,15 @@ def ryfs_export():
     for sector in range(0, size):
         ryfs_image.seek(ryfs_image.tell()+2)
         next_sector = int.from_bytes(ryfs_image.read(2), byteorder='little')
-        extra_file.write(ryfs_image.read(508))
+        sector_size = int.from_bytes(ryfs_image.read(2), byteorder='little')
+        if sector != size-1:
+            # this is not the last sector of this file
+            # read a whole sector's worth of data
+            extra_file.write(ryfs_image.read(506))
+        else:
+            # this is the last sector of this file
+            # only read the amount of data in this sector
+            extra_file.write(ryfs_image.read(sector_size))
         ryfs_image.seek(next_sector*512)
 
     extra_file.close()
@@ -354,7 +372,7 @@ if __name__ == '__main__':
         else:
             extra_file_name, extra_file_ext = os.path.splitext(os.path.basename(extra_file.name))
             extra_file_size = os.fstat(extra_file.fileno()).st_size
-            extra_file_size_sectors = int(round_ceil(extra_file_size, 508)/508)
+            extra_file_size_sectors = int(round_ceil(extra_file_size, 506)/506)
             extra_file_ext = extra_file_ext[1:]
         
         if (len(extra_file_name) > 8) or (len(extra_file_ext) > 3):
