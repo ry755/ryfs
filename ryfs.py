@@ -339,8 +339,8 @@ def open_file(filename):
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
         description="RYFS management tool - version " + version + "\nManage RYFSv1 disk images",
-        epilog="example commands to create a 512 byte image named \"ryfs.img\" with label \"Stuff\" and add \"hello.txt\" to it:\
-            \n  create ryfs.img -l Stuff -s 512\
+        epilog="example commands to create a 2KB image named \"ryfs.img\" with label \"Stuff\" and add \"hello.txt\" to it:\
+            \n  create ryfs.img -l Stuff -s 2048\
             \n  add ryfs.img hello.txt\
             \n  list ryfs.img"
     )
