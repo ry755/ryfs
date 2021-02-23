@@ -1,0 +1,30 @@
+RYFS (version 1) disk layout
+*** words are little-endian! ***
+
+  directory sector header:
+    /> 00-FE: number of bitmap sectors following this directory sector
+    |  /> RYFS version number
+    |  |  /> "RY" in ASCII
+    |  |  |    /> directory size (in sectors)
+    |  |  |    |    /> 8 character directory name in ASCII
+    |  |  |    |    |                /> null-terminator for directory name
+    |  |  |    |    |                |  /> alignment
+    |  |  |    |    |                |  |
+    01 01 5259 400B 46656E6E65630000 00 00
+
+  directory sector entry:
+    /> first sector of file
+    |    /> file size (in sectors)
+    |    |    /> 8.3 character file name in ASCII
+    |    |    |                      /> null-terminator for file name
+    |    |    |                      |
+    0600 D500 6B65726E656C202062696E 00
+
+  file sector header:
+    /> indicates this is a file sector
+    |  /> alignment
+    |  |  /> next sector of file (0000 if this is the last sector)
+    |  |  |    /> if this is the last sector: size in bytes of the file data in this sector (max. 506 dec/1FA hex)
+    |  |  |    |    /> 506 bytes of file data
+    |  |  |    |    |
+    FF 00 0400 8000 ........
