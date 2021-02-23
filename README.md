@@ -1,9 +1,9 @@
 # RYFS - the Ry File System
-This is a work-in-progress filesystem for small-sized disks  
-RYFS was made for fun, it is not meant to be used practically
+This is a work-in-progress filesystem for small-sized disks.  
+RYFS was made for fun, it is not meant to be used practically.
 
 # Usage
-`ryfs.py` is used to create and modify RYFS disk images  
+`ryfs.py` is used to create and modify RYFS disk images.  
 The following commands are supported:  
 | Command  | Description                     |
 |----------|---------------------------------|
@@ -13,7 +13,7 @@ The following commands are supported:
 | `export` | Export a file from a disk image |
 | `list`   | List files in a disk image      |
 
-See `./ryfs.py --help` for more details
+See `./ryfs.py --help` for more details.
 
 # License
 This project is licensed under MIT, see the [LICENSE](LICENSE) file for more details
