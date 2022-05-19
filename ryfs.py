@@ -7,7 +7,7 @@ import sys
 import struct
 import argparse
 
-version_info = (0, 2)
+version_info = (0, 3)
 version = '.'.join(str(c) for c in version_info)
 
 # create new RYFSv1 disk image
@@ -48,13 +48,13 @@ def ryfs_create():
 
 # add file to an existing RYFSv1 disk image
 def ryfs_add():
+    # if this file already exists, delete it first
+    if ryfs_find_entry(extra_file_name, extra_file_ext) != None:
+        print("replacing existing file")
+        ryfs_remove()
+
     if not quiet:
         print("adding file", "\"" + extra_file_name + "." + extra_file_ext + "\"", "of size", extra_file_size, "bytes to RYFSv1 filesystem with label", "\"" + ryfs_image_label + "\"")
-
-    # ensure file doesn't already exist
-    if ryfs_find_entry(extra_file_name, extra_file_ext) != None:
-        print("file already exists! failing")
-        return
 
     # find first empty file entry
     first_free_entry = ryfs_find_free_entry()
