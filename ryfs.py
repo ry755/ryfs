@@ -7,7 +7,7 @@ import sys
 import struct
 import argparse
 
-version_info = (0, 3)
+version_info = (0, 4)
 version = '.'.join(str(c) for c in version_info)
 
 # create new RYFSv1 disk image
@@ -29,6 +29,7 @@ def ryfs_create():
     ryfs_image.seek(512)
 
     # write number of bitmap sectors, 1 byte
+    ryfs_image_bitmap_sectors = int(round_ceil(ryfs_image_size_sectors, 4096)/4096)
     ryfs_image.write(struct.pack('<B', ryfs_image_bitmap_sectors))
     # write RYFSv1 version header
     ryfs_image.write(bytearray([1,ord('R'),ord('Y')]))
@@ -357,7 +358,6 @@ if __name__ == '__main__':
     ryfs_image = open_image(args.image[0])
     ryfs_image_size = args.size
     ryfs_image_size_sectors = int(round_ceil(ryfs_image_size, 512)/512)
-    ryfs_image_bitmap_sectors = int(round_ceil(ryfs_image_size_sectors, 4096)/4096)
     ryfs_image_label = args.label
 
     if ryfs_action == "add" or ryfs_action == "export" or ryfs_action == "remove":
@@ -374,7 +374,7 @@ if __name__ == '__main__':
             extra_file_size = os.fstat(extra_file.fileno()).st_size
             extra_file_size_sectors = int(round_ceil(extra_file_size, 506)/506)
             extra_file_ext = extra_file_ext[1:]
-        
+
         if (len(extra_file_name) > 8) or (len(extra_file_ext) > 3):
             print("error: file name must be in 8.3 format")
             print(len(extra_file_name))
@@ -393,8 +393,10 @@ if __name__ == '__main__':
         print("error: RYFSv1 does not support read-write filesystems over 16MB")
         sys.exit()
 
-    # if we aren't creating a new filesystem, get the existing label
+    # if we aren't creating a new filesystem, get the existing label and numebr of bitmap sectors
     if ryfs_action != "create":
+        ryfs_image.seek(512)
+        ryfs_image_bitmap_sectors = int.from_bytes(ryfs_image.read(1), "little")
         ryfs_image.seek(512+6)
         ryfs_image_label = ryfs_image.read(8).decode("utf-8")
 
