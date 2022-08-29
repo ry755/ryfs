@@ -7,7 +7,7 @@ import sys
 import struct
 import argparse
 
-version_info = (0, 4)
+version_info = (0, 5)
 version = '.'.join(str(c) for c in version_info)
 
 # create new RYFSv1 disk image
@@ -200,7 +200,7 @@ def ryfs_find_free_sector():
     ryfs_image.seek(1024)
     # find first free sector
     for bitmap_sector in range(0, ryfs_image_bitmap_sectors):
-        for bitmap_byte in range(0, 511):
+        for bitmap_byte in range(0, 512):
             first_clear_bit = find_first_clear(int.from_bytes(ryfs_image.read(1), byteorder='little'))
             if first_clear_bit != None:
                 first_free_sector = (bitmap_sector*4096) + (bitmap_byte*8) + first_clear_bit
@@ -258,8 +258,8 @@ def ryfs_mark_used(sector):
 
     bitmap_sector = int(round_ceil(sector+1, 4096)/4096)-1
     bitmap_byte = int(round_ceil(sector+1, 8)/8)-1
-    if bitmap_byte > 4096:
-        bitmap_byte = bitmap_byte % 4096
+    if bitmap_byte >= 512:
+        bitmap_byte = bitmap_byte % 512
     bitmap_bit = sector % 8
 
     final_location = 1024+(bitmap_sector*512)+bitmap_byte
