@@ -77,9 +77,11 @@ def ryfs_add():
 
     # write null-terminated 8.3 file name, 12 bytes
     spaces = ' ' * (8 - len(extra_file_name))
+    spaces_ext = ' ' * (3 - len(extra_file_ext))
     ryfs_image.write(bytearray(extra_file_name, 'utf-8'))
     ryfs_image.write(bytearray(spaces, 'utf-8'))
     ryfs_image.write(bytearray(extra_file_ext, 'utf-8'))
+    ryfs_image.write(bytearray(spaces_ext, 'utf-8'))
     ryfs_image.write(bytearray('\x00', 'utf-8'))
 
     extra_file.seek(0)
@@ -235,10 +237,12 @@ def ryfs_find_entry(name, ext):
     old_location = ryfs_image.tell()
 
     spaces = ' ' * (8 - len(name))
+    spaces_ext = ' ' * (3 - len(ext))
     entry = bytearray()
     entry.extend(bytes(name, 'utf-8'))
     entry.extend(bytes(spaces, 'utf-8'))
     entry.extend(bytes(ext, 'utf-8'))
+    entry.extend(bytes(spaces_ext, 'utf-8'))
     entry.extend(bytes('\x00', 'utf-8'))
     ryfs_image.seek(512+20)
     for i in range(0,30):
