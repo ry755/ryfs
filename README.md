@@ -5,13 +5,14 @@ RYFS was made for fun, it is not meant to be used practically.
 # Usage
 `ryfs.py` is used to create and modify RYFS disk images.  
 The following commands are supported:  
-| Command  | Description                     |
-|----------|---------------------------------|
-| `create` | Create a new RYFS disk image    |
-| `add`    | Add a file to a disk image      |
-| `remove` | Remove a file from a disk image |
-| `export` | Export a file from a disk image |
-| `list`   | List files in a disk image      |
+| Command  | Description                            |
+|----------|----------------------------------------|
+| `create` | Create a new RYFS disk image           |
+| `add`    | Add a file to a disk image             |
+| `remove` | Remove a file from a disk image        |
+| `export` | Export a file from a disk image        |
+| `list`   | List files in a disk image             |
+| `newdir` | Create a new directory in a disk image |
 
 See `./ryfs.py --help` for more details.
 

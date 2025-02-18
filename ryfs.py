@@ -7,7 +7,7 @@ import sys
 import struct
 import argparse
 
-version_info = (0, 5)
+version_info = (0, 6)
 version = '.'.join(str(c) for c in version_info)
 
 # create new RYFSv1 disk image
@@ -183,7 +183,7 @@ def ryfs_list():
         print("listing files from RYFSv1 filesystem with label", "\"" + ryfs_image_label + "\"")
 
     # seek to first file entry
-    ryfs_image.seek(512+16)
+    ryfs_image.seek((destination_dir*512)+16)
     # print existing file entries
     for i in range(0,30):
         if ryfs_image.read(2) != b'\x00\x00':
@@ -192,6 +192,58 @@ def ryfs_list():
             print(entry)
             continue
         ryfs_image.seek(ryfs_image.tell()+4)
+
+# create directory in an existing RYFSv1 disk image
+def ryfs_newdir():
+    # if this file already exists, delete it first
+    if ryfs_find_entry(extra_file_name, extra_file_ext) != None:
+        print("replacing existing file")
+        ryfs_remove()
+
+    if not quiet:
+        print("creating directory", "\"" + extra_file_name + "." + extra_file_ext + "\"", "in RYFSv1 filesystem with label", "\"" + ryfs_image_label + "\"")
+
+    # find first empty file entry
+    first_free_entry = ryfs_find_free_entry()
+    if first_free_entry == None:
+        print("all file entries are used! failing")
+        return
+    ryfs_image.seek(first_free_entry)
+
+    first_free_sector = ryfs_find_free_sector()
+    if first_free_sector == None:
+        print("all sectors are used! failing")
+        return
+
+    # write number of first file sector, 2 bytes, little endian
+    ryfs_image.write(struct.pack('<H', first_free_sector))
+
+    # write file size in sectors, 2 bytes, little endian
+    ryfs_image.write(struct.pack('<H', 1))
+
+    # write null-terminated 8.3 file name, 12 bytes
+    spaces = ' ' * (8 - len(extra_file_name))
+    spaces_ext = ' ' * (3 - len(extra_file_ext))
+    ryfs_image.write(bytearray(extra_file_name, 'utf-8'))
+    ryfs_image.write(bytearray(spaces, 'utf-8'))
+    ryfs_image.write(bytearray(extra_file_ext, 'utf-8'))
+    ryfs_image.write(bytearray(spaces_ext, 'utf-8'))
+    ryfs_image.write(bytearray('\x00', 'utf-8'))
+
+    # find a free sector to use as the current sector to write to
+    next_free_sector = ryfs_find_free_sector()
+    ryfs_image.seek(next_free_sector*512)
+    ryfs_mark_used(next_free_sector)
+    ryfs_image.write(bytearray([0xFF,0xAA]))
+    ryfs_image.write(bytearray([ord('R'),ord('Y')]))
+    ryfs_image.write(struct.pack('<H', destination_dir))
+    zeros = [0] * (8 - len(extra_file_name))
+    ryfs_image.write(bytearray(extra_file_name, 'utf-8'))
+    ryfs_image.write(bytearray(zeros))
+    ryfs_image.write(bytearray([0,0]))
+    # zero sector to ensure there is no remaining data from previous files
+    ryfs_image.write(bytearray(506))
+    ryfs_image.seek(ryfs_image.tell()-506)
 
 # find first free sector
 # returns None if all sectors are used
@@ -218,7 +270,7 @@ def ryfs_find_free_entry():
     # save current file pointer
     old_location = ryfs_image.tell()
     # seek to first file entry
-    ryfs_image.seek(512+16)
+    ryfs_image.seek((destination_dir*512)+16)
     # loop through each entry until we find an empty one
     for i in range(0,30):
         if ryfs_image.read(2) == b'\x00\x00':
@@ -244,7 +296,7 @@ def ryfs_find_entry(name, ext):
     entry.extend(bytes(ext, 'utf-8'))
     entry.extend(bytes(spaces_ext, 'utf-8'))
     entry.extend(bytes('\x00', 'utf-8'))
-    ryfs_image.seek(512+20)
+    ryfs_image.seek((destination_dir*512)+20)
     for i in range(0,30):
         if bytearray(ryfs_image.read(12)) == entry:
             entry_location = (ryfs_image.tell()-16)
@@ -297,6 +349,24 @@ def ryfs_mark_free(sector):
     # restore old file pointer
     ryfs_image.seek(old_location)
 
+def ryfs_traverse_path(path):
+    global destination_dir
+
+    if path == "/":
+        return 1
+    if path[0] == "/":
+        path = path[1:]
+    dirs = path.split("/")
+    for dir in dirs:
+        dir = dir.replace(".dir", "")
+        destination_dir = ryfs_find_entry(dir, "dir")
+        if destination_dir == None:
+            print("directory \"" + dir + ".dir\"", "not found! failing")
+            sys.exit()
+        ryfs_image.seek(destination_dir)
+        destination_dir = int.from_bytes(ryfs_image.read(2), byteorder='little')
+    return destination_dir
+
 def round_ceil(number, ceil_num):
     if number == 0:
         return ceil_num
@@ -333,7 +403,7 @@ def open_image(filename):
 def open_file(filename):
     if ryfs_action == "export":
         return open(filename, 'w+b')
-    if ryfs_action == "remove":
+    if ryfs_action == "remove" or ryfs_action == "newdir":
         return filename
     if os.path.exists(filename):
         return open(filename, 'r+b')
@@ -349,11 +419,12 @@ if __name__ == '__main__':
             \n  add ryfs.img hello.txt\
             \n  list ryfs.img"
     )
-    arg_parser.add_argument('action', nargs=1, help="\"add\", \"create\", \"export\", \"list\", \"remove\"")
+    arg_parser.add_argument('action', nargs=1, help="\"add\", \"create\", \"export\", \"list\", \"remove\", \"newdir\"")
     arg_parser.add_argument('image', nargs=1, help="disk image to manage")
     arg_parser.add_argument('file', nargs='?', help="file to modify (optional, depending on action)")
     arg_parser.add_argument('-b', '--boot-sector', dest="boot", type=argparse.FileType('rb'), help="use specified file as boot sector (must be 512 bytes)")
     arg_parser.add_argument('-l', '--label', type=str, default="RYFS", help="label of new directory (max. 8 characters, default \"RYFS\")")
+    arg_parser.add_argument('-d', '--dest-dir', dest="path", type=str, default="/", help="directory path to access (default \"/\")")
     arg_parser.add_argument('-s', '--size', type=int, default=1474560, help="size in bytes of disk image to create (default 1474560 bytes)")
     arg_parser.add_argument('-q', '--quiet', action="store_true", help="disable all output except warnings and errors")
     args = arg_parser.parse_args()
@@ -364,14 +435,14 @@ if __name__ == '__main__':
     ryfs_image_size_sectors = int(round_ceil(ryfs_image_size, 512)/512)
     ryfs_image_label = args.label
 
-    if ryfs_action == "add" or ryfs_action == "export" or ryfs_action == "remove":
+    if ryfs_action == "add" or ryfs_action == "export" or ryfs_action == "remove" or ryfs_action == "newdir":
         use_extra_file = True
     else:
         use_extra_file = False
 
     if use_extra_file:
         extra_file = open_file(args.file)
-        if ryfs_action == "remove":
+        if ryfs_action == "remove" or ryfs_action == "newdir":
             extra_file_name, extra_file_ext = extra_file.split('.')
         else:
             extra_file_name, extra_file_ext = os.path.splitext(os.path.basename(extra_file.name))
@@ -397,7 +468,7 @@ if __name__ == '__main__':
         print("error: RYFSv1 does not support read-write filesystems over 16MB")
         sys.exit()
 
-    # if we aren't creating a new filesystem, get the existing label and numebr of bitmap sectors
+    # if we aren't creating a new filesystem, get the existing label and number of bitmap sectors
     if ryfs_action != "create":
         ryfs_image.seek(512)
         ryfs_image_bitmap_sectors = int.from_bytes(ryfs_image.read(1), "little")
@@ -407,6 +478,10 @@ if __name__ == '__main__':
     if len(ryfs_image_label) > 8:
         print("error: filesystem label must be 8 characters or less")
         sys.exit()
+
+    destination_dir = 1
+    if args.path != "/":
+        destination_dir = ryfs_traverse_path(args.path)
 
     if ryfs_action == "add":
         ryfs_add()
@@ -418,6 +493,8 @@ if __name__ == '__main__':
         ryfs_list()
     elif ryfs_action == "remove":
         ryfs_remove()
+    elif ryfs_action == "newdir":
+        ryfs_newdir()
     else:
         print("error: unknown action", "\"" + ryfs_action + "\"")
         sys.exit()

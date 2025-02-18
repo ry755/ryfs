@@ -1,7 +1,7 @@
 RYFS (version 1) disk layout
 *** words are little-endian! ***
 
-  directory sector header:
+  root directory sector header:
     /> 00-FE: number of bitmap sectors following this directory sector
     |  /> RYFS version number
     |  |  /> "RY" in ASCII
@@ -11,6 +11,17 @@ RYFS (version 1) disk layout
     |  |  |    |    |                |  /> alignment
     |  |  |    |    |                |  |
     01 01 5259 400B 46656E6E65630000 00 00
+
+  subdirectory sector header:
+    /> indicates this is a file sector
+    |  /> indicates this file sector should be treated as a subdirectory
+    |  |  /> "RY" in ASCII
+    |  |  |    /> sector of parent directory
+    |  |  |    |    /> 8 character directory name in ASCII
+    |  |  |    |    |                /> null-terminator for directory name
+    |  |  |    |    |                |  /> alignment
+    |  |  |    |    |                |  |
+    FF AA 5259 0100 46656E6E65630000 00 00
 
   directory sector entry:
     /> first sector of file
