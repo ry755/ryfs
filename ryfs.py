@@ -195,10 +195,12 @@ def ryfs_list():
 
 # create directory in an existing RYFSv1 disk image
 def ryfs_newdir():
-    # if this file already exists, delete it first
+    global destination_dir
+
+    # if this file already exists, error
     if ryfs_find_entry(extra_file_name, extra_file_ext) != None:
-        print("replacing existing file")
-        ryfs_remove()
+        print("directory already exists! failing")
+        return
 
     if not quiet:
         print("creating directory", "\"" + extra_file_name + "." + extra_file_ext + "\"", "in RYFSv1 filesystem with label", "\"" + ryfs_image_label + "\"")
@@ -234,6 +236,8 @@ def ryfs_newdir():
     next_free_sector = ryfs_find_free_sector()
     ryfs_image.seek(next_free_sector*512)
     ryfs_mark_used(next_free_sector)
+
+    # build the directory sector
     ryfs_image.write(bytearray([0xFF,0xAA]))
     ryfs_image.write(bytearray([ord('R'),ord('Y')]))
     ryfs_image.write(struct.pack('<H', destination_dir))
@@ -244,6 +248,21 @@ def ryfs_newdir():
     # zero sector to ensure there is no remaining data from previous files
     ryfs_image.write(bytearray(506))
     ryfs_image.seek(ryfs_image.tell()-506)
+
+    # add directory entry pointing to parent dir
+    parent_dir = destination_dir
+    destination_dir = next_free_sector
+    first_free_entry = ryfs_find_free_entry()
+    if first_free_entry == None:
+        print("all file entries are used! failing")
+        return
+    ryfs_image.seek(first_free_entry)
+    # write number of first file sector, 2 bytes, little endian
+    ryfs_image.write(struct.pack('<H', parent_dir))
+    # write file size in sectors, 2 bytes, little endian
+    ryfs_image.write(struct.pack('<H', 1))
+    # write null-terminated 8.3 file name, 12 bytes
+    ryfs_image.write(bytearray('^       dir\x00', 'utf-8'))
 
 # find first free sector
 # returns None if all sectors are used
